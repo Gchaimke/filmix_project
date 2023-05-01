@@ -1,0 +1,6 @@
+filmix/__pycache__/
+dist/
+build/
+filmix.egg-info/
+tests/
+.vscode/
