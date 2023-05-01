@@ -1,15 +1,19 @@
 # Simple Typer scraper
+
 This scraper working without selenium or chromebrowser<br>
 can do login if needed
 
 ## Instalation
+
 ```
 git clone https://github.com/Gchaimke/filmix_project.git
 cd filmix_project
 pip install -r requirements.txt
 python setup.py install
 ```
+
 ## Usage
+
 ```
 # list films db
 > python -m filmix list
