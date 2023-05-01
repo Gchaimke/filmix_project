@@ -117,8 +117,6 @@ def list_all(login: bool = typer.Option(False, '--login', '-l'),
     spacer = "-" * width
     typer.secho(spacer, fg=typer.colors.GREEN)
     id_len = 2 if len(film_list) >= 10 else 1
-    print(f'{film_list=}')
-
     for id, film in enumerate(film_list, 1):
         if fetch:
             todoer.get_status(film, id)
