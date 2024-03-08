@@ -4,3 +4,4 @@ build/
 filmix.egg-info/
 tests/
 .vscode/
+venv/

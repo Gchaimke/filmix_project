@@ -108,7 +108,6 @@ def list_all(login: bool = typer.Option(False, '--login', '-l'),
         typer.secho(
             "There are no tasks in the film list yet", fg=typer.colors.RED
         )
-        raise typer.Exit()
     width = 110
     table_header = f'Film List {version}'
     delimitter = (int(width/2)-len(table_header))*' '
