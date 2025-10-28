@@ -4,3 +4,4 @@ build/
 filmix.egg-info/
 .vscode/
 venv/
+tests/__pycache__/
