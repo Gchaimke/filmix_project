@@ -114,9 +114,11 @@ def list_all(fetch: bool = typer.Option(False, '--fetch', '-f'),
     spacer = "-" * width
     typer.secho(spacer, fg=typer.colors.GREEN)
     id_len = 2 if len(film_list) >= 10 else 1
+    if fetch:
+        typer.secho("Fetching status...", fg=typer.colors.CYAN)
+        todoer.start_fetch()
+
     for id, film in enumerate(film_list, 1):
-        if fetch:
-            todoer.get_status(film, id)
         if not film.get('name'):
             film['name'] = film.get('url')
 

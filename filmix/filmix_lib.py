@@ -1,27 +1,29 @@
 from pathlib import Path
 from random import randint
-import time
 from typing import Any, Dict, List, NamedTuple
+import urllib
+import urllib.parse
 from filmix.database import DatabaseHandler
 from filmix import DB_READ_ERROR, ID_ERROR, SUCCESS
 from bs4 import BeautifulSoup
-import requests
+import aiohttp
+import asyncio
+import fake_useragent
+
+
+SESSION_STATIC_HEADERS = {
+    'sec-ch-ua': '"Chromium";v="110", "Not A(Brand";v="24"',
+    'sec-ch-ua-platform': 'Windows',
+}
 
 
 class CurrentTodo(NamedTuple):
     todo: Dict[str, Any]
-    error: int
+    error: int = SUCCESS
 
 
 class Todoer:
     def __init__(self, db_path: Path) -> None:
-        self.session = requests.Session()
-        self.session.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36'}
-        self.session.headers['sec-ch-ua'] = '"Chromium";v="110", "Not A(Brand";v="24"'
-        self.session.headers['sec-ch-ua-platform'] = 'Windows'
-        self.session.headers['origin'] = 'https://filmix.ac'
-        self.session.headers['referer'] = 'https://filmix.ac/'
         self._db_handler = DatabaseHandler(db_path)
 
     def add(self, **kwargs) -> CurrentTodo:
@@ -41,31 +43,74 @@ class Todoer:
         read = self._db_handler.read()
         return read.todo_list
 
-    def set_headers_ip(self, prefix='185.3.'):
-        ip_headers = ['X-Originating-IP', 'X-Forwarded-For', 'X-Remote-IP',
-                      'X-Remote-Addr', 'X-Client-IP', 'X-Host', 'X-Forwared-Host']
-        for head in ip_headers:
-            self.session.headers[head] = f'{prefix}{randint(1,253)}.{randint(1,253)}'
+    def set_random_headers(self, prefix='185.3.'):
+        current_ip = f'{prefix}{randint(1,253)}.{randint(1,253)}'
+        return {
+            'X-Originating-IP': current_ip,
+            'X-Forwarded-For': current_ip,
+            'X-Remote-IP': current_ip,
+            'X-Remote-Addr': current_ip,
+            'X-Client-IP': current_ip,
+            'X-Host': current_ip,
+            'X-Forwarded-Host': current_ip,
+            'User-Agent': fake_useragent.UserAgent().random,
+        }
 
-    def get_status(self, film, id):
-        self.set_headers_ip()
-        page = self.session.get(film.get('url'))
-        if page.status_code == 429:
-            retry = page.headers.get('Retry-After')
-            print(f'Waiting {retry}')
-            print(self.session.headers)
-            print(self.session.cookies)
-            time.sleep(int(retry) + 1)
-            page = self.session.get(film.get('url'))
-        soup = BeautifulSoup(page.content, 'html.parser')
+    def start_fetch(self):
+        asyncio.run(self.fetch_all_status())
+
+    async def fetch_all_status(self):
+        tasks = []
+        film_list = self.get_film_list()
+        for idx, film in enumerate(film_list, start=1):
+            tasks.append(self.get_status(film, idx))
+        await asyncio.gather(*tasks)
+
+    async def fetch_one_status(self, film, debug=False):
+        url = film.get('url')
+        origin = urllib.parse.urlparse(url).netloc
+        try:
+            current_headers = SESSION_STATIC_HEADERS.copy()
+            current_headers = {**current_headers, **self.set_random_headers(),
+                               'origin': f'https://{origin}', 'referer': f'https://{origin}/'}
+            async with aiohttp.ClientSession(headers=current_headers) as session:
+                async with session.get(url) as page:
+                    if debug:
+                        print(f'Fetching status for url {film.get("url")} with ip '
+                              f'{session.headers.get("X-Forwarded-For")}')
+                    await page.read()
+                    if page.status == 429:
+                        print('Too many requests, retrying with new IP...')
+                        session.headers.update(self.set_random_headers())
+                        retry = int(page.headers.get(
+                            'Retry-After')) + randint(5, 10)
+                        print(f'Waiting {retry} seconds to retry...')
+                        await asyncio.sleep(retry)
+                        if debug:
+                            print(session.headers)
+                        page = await session.get(url)
+                        await page.read()
+                        if page.status == 429:
+                            print('Still too many requests, skipping...')
+                            return ''
+                    return await page.text()
+        except Exception as ex:
+            print(f'Cannot fetch url {url}, {ex}')
+            return ''
+
+    async def get_status(self, film, film_id, debug=False) -> Dict[str, Any]:
+        page_content = await self.fetch_one_status(film, debug)
+        soup = BeautifulSoup(page_content, 'html.parser')
+        name = None
         try:
             if not film.get('name'):
                 name = soup.select_one(film.get('n_selector'))
                 if name:
                     film['name'] = name.text
-                    self.change(id, name=film.get('name'))
+                    self.change(film_id=film_id, name=film.get('name'))
 
-            imdb = soup.select_one('span.imdb_rating') or soup.select_one('span.imdb')
+            imdb = soup.select_one(
+                'span.imdb_rating') or soup.select_one('span.imdb')
             if imdb:
                 film['imdb'] = '|'.join(imdb.text.split('\n')).rstrip('|')
 
@@ -83,8 +128,11 @@ class Todoer:
             if not film.get('quality') and 'hdkinoteatr' in film.get('url'):
                 film['quality'] = 'HD 720P'
 
-            if film.get('quality') or film.get('imdb') or film.get('name'):
-                self.change(id, **film)
+            if quality or imdb or name or rate_pos or rate_neg:
+                if debug:
+                    print(
+                        f'Fetched film info: {name=}, {imdb=}, {quality=}, {rate_pos=}, {rate_neg=}')
+                self.change(film_id, **film)
         except AttributeError as ex:
             print(f'Cannot get film name or quality, {ex}')
         return film

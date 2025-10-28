@@ -1,3 +1,4 @@
+import asyncio
 from os import read
 from typer.testing import CliRunner
 import pytest
@@ -100,7 +101,8 @@ def test_change(mock_json_file):
 
 def test_set_headers_ip(mock_json_file):
     todoer = filmix_lib.Todoer(mock_json_file)
-    todoer.set_headers_ip('192.168.')
-    assert '192.168' in todoer.session.headers.get('X-Forwarded-For')
-    todoer.set_headers_ip('183.168.')
-    assert '183.168' in todoer.session.headers.get('X-Remote-IP')
+    ip_headers = todoer.set_random_headers('192.168.')
+    assert '192.168' in ip_headers.get('X-Forwarded-For')
+    ip_headers = todoer.set_random_headers('183.168.')
+    assert '183.168' in ip_headers.get('X-Remote-IP')
+
