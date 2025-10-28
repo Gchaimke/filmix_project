@@ -24,23 +24,6 @@ class Todoer:
         self.session.headers['referer'] = 'https://filmix.ac/'
         self._db_handler = DatabaseHandler(db_path)
 
-    def login(self, username='', password=''):
-        if not username:
-            username = 'gchaimke'
-        if not password:
-            password = '123'
-        self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8'
-        self.session.headers['X-Requested-With'] = 'XMLHttpRequest'
-        payload = {'login_name': username, 'login_password': password,
-                   'login_not_save': 0, "login": 'submit'}
-        page = self.session.post('https://filmix.ac/login', data=payload)
-        if page.status_code == 429:
-            retry = page.headers.get('Retry-After')
-            time.sleep(int(retry) + 1)
-            page = self.session.post('https://filmix.ac/login', data=payload)
-        dle_password = self.session.cookies.get('dle_password')
-        return len(dle_password) > 10
-
     def add(self, **kwargs) -> CurrentTodo:
         """Add a new to-do to the database."""
         film = {}
@@ -58,11 +41,11 @@ class Todoer:
         read = self._db_handler.read()
         return read.todo_list
 
-    def set_headers_ip(self):
+    def set_headers_ip(self, prefix='185.3.'):
         ip_headers = ['X-Originating-IP', 'X-Forwarded-For', 'X-Remote-IP',
                       'X-Remote-Addr', 'X-Client-IP', 'X-Host', 'X-Forwared-Host']
         for head in ip_headers:
-            self.session.headers[head] = f'185.3.{randint(1,253)}.{randint(1,253)}'
+            self.session.headers[head] = f'{prefix}{randint(1,253)}.{randint(1,253)}'
 
     def get_status(self, film, id):
         self.set_headers_ip()

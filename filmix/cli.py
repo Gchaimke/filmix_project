@@ -80,7 +80,8 @@ def add(
 ) -> None:
     """Add new film, first is url, options -ns, -qs"""
     todoer = get_todoer()
-    film, error = todoer.add(url=url, n_selector=n_selector, q_selector=q_selector)
+    film, error = todoer.add(
+        url=url, n_selector=n_selector, q_selector=q_selector)
     if error:
         typer.secho(
             f'Adding film failed with "{ERRORS[error]}"', fg=typer.colors.RED
@@ -96,13 +97,10 @@ def add(
 
 
 @app.command(name="list")
-def list_all(login: bool = typer.Option(False, '--login', '-l'),
-             fetch: bool = typer.Option(False, '--fetch', '-f'),
+def list_all(fetch: bool = typer.Option(False, '--fetch', '-f'),
              verbose: bool = typer.Option(False, '--verbose', '-v')) -> None:
-    """List all films, options --login|-l, --fetch|-f, --verbose|-v"""
+    """List all films, options --fetch|-f, --verbose|-v"""
     todoer = get_todoer()
-    if login:
-        print(todoer.login())
     film_list = todoer.get_film_list()
     if len(film_list) == 0:
         typer.secho(
@@ -110,8 +108,8 @@ def list_all(login: bool = typer.Option(False, '--login', '-l'),
         )
     width = 110
     table_header = f'Film List {version}'
-    delimitter = (int(width/2)-len(table_header))*' '
-    typer.secho(f"\n\n{delimitter}{table_header}{delimitter}",
+    delimiter = (int(width/2)-len(table_header))*' '
+    typer.secho(f"\n\n{delimiter}{table_header}{delimiter}",
                 fg=typer.colors.GREEN, bold=True)
     spacer = "-" * width
     typer.secho(spacer, fg=typer.colors.GREEN)
@@ -123,11 +121,10 @@ def list_all(login: bool = typer.Option(False, '--login', '-l'),
             film['name'] = film.get('url')
 
         msg = f" {id}.{(id_len if id_len>1 and id<10 else 1)*' '} {film.get('name')}{(50-len(film.get('name')))*' '}"
-        if film.get('quality'):
-            msg += f"{film.get('quality')}"
-        if film.get('imdb'):
-            msg += (18 - len(film.get('quality'))) * \
-                ' '+f"IMDB:{film.get('imdb')}"
+        if quality := film.get('quality'):
+            msg += str(quality)
+        if imdb := film.get('imdb'):
+            msg += (18 - len(quality)) * ' ' + f"IMDB:{imdb}"
         if film.get('filmix_users_rating'):
             msg += (18 - len(film.get('imdb'))) * ' ' + \
                 f"Filmix:{film.get('filmix_users_rating')}"
@@ -136,7 +133,6 @@ def list_all(login: bool = typer.Option(False, '--login', '-l'),
         typer.secho(msg, fg=typer.colors.BLUE)
     typer.secho(spacer + "\n", fg=typer.colors.CYAN)
     print_menu()
-
 
 
 @app.command()
@@ -249,13 +245,13 @@ def open(film_id: int = typer.Argument(...)):
         todoer = get_todoer()
         film_list = todoer.get_film_list()
         webbrowser.register('vivaldi', None, webbrowser.BackgroundBrowser(
-        "C:\\Program Files\\Vivaldi\Application\\vivaldi.exe"))
+            "C:\\Program Files\\Vivaldi\Application\\vivaldi.exe"))
         webbrowser.get('vivaldi').open(film_list[film_id - 1].get('url'))
     except Exception as ex:
         print(str(ex))
 
 
-def print_usefull():
+def print_useful():
     typer.secho('python -m filmix list -f', fg=typer.colors.GREEN)
     typer.secho('python -m filmix open film_id', fg=typer.colors.GREEN)
     typer.secho('python -m filmix remove film_id', fg=typer.colors.GREEN)
@@ -264,9 +260,11 @@ def print_usefull():
     typer.secho(
         'python -m filmix change film_id --url|-u --name|-n -ns -qs', fg=typer.colors.GREEN)
 
+
 def print_menu():
     typer.secho('Films operations:', fg=typer.colors.GREEN)
-    menu_list = ('Open browser', 'Add', 'Remove', 'List', 'Fetch', 'Print direct commands and exit')
+    menu_list = ('Open browser', 'Add', 'Remove', 'List',
+                 'Fetch', 'Print direct commands and exit')
     for id, menu in enumerate(menu_list):
         typer.secho(f'{id+1}. {menu}', fg=typer.colors.GREEN)
     typer.secho('Type 0 to exit', fg=typer.colors.GREEN)
@@ -280,25 +278,26 @@ def print_menu():
         if uinput == '2':
             url = typer.prompt("Enter film url")
             if url:
-                n_selector = typer.prompt("Enter name selector or enter to use default", default='h1.name', )
-                q_selector = typer.prompt("Enter quality selector or enter to use default", default='div.quality')
+                n_selector = typer.prompt(
+                    "Enter name selector or enter to use default", default='h1.name', )
+                q_selector = typer.prompt(
+                    "Enter quality selector or enter to use default", default='div.quality')
                 if n_selector and q_selector:
                     add(url=url, n_selector=n_selector, q_selector=q_selector)
                 else:
-                     add(url=url)
+                    add(url=url)
         if uinput == '3':
             film_id = typer.prompt("Enter film id")
             if film_id.isdigit():
                 remove(int(film_id))
         if uinput == '4':
             typer.clear()
-            list_all(login=False, fetch=False, verbose=False)
+            list_all(fetch=False, verbose=False)
         if uinput == '5':
             typer.clear()
-            list_all(login=False, fetch=True, verbose=False)
+            list_all(fetch=True, verbose=False)
         if uinput == '6':
-            print_usefull()
+            print_useful()
             break
         if uinput == '0':
             break
-    
