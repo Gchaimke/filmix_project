@@ -1,5 +1,5 @@
 app_name = 'filmix'
-version = '0.11.0'
+version = '0.12.0'
 
 (
     SUCCESS,
