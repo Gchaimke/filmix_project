@@ -1,3 +1,4 @@
+import datetime
 from pathlib import Path
 from random import randint
 from typing import Any, Dict, List, NamedTuple
@@ -43,8 +44,8 @@ class Todoer:
         read = self._db_handler.read()
         return read.todo_list
 
-    def set_random_headers(self, prefix='185.3.'):
-        current_ip = f'{prefix}{randint(1,253)}.{randint(1,253)}'
+    def set_random_headers(self):
+        current_ip = f'{randint(1,253)}.{randint(1,253)}.{randint(1,253)}.{randint(1,253)}'
         return {
             'X-Originating-IP': current_ip,
             'X-Forwarded-For': current_ip,
@@ -57,13 +58,20 @@ class Todoer:
         }
 
     def start_fetch(self):
-        asyncio.run(self.fetch_all_status())
+        asyncio.run(self.fetch_all_statuses())
 
-    async def fetch_all_status(self):
+    async def fetch_all_statuses(self):
         tasks = []
         film_list = self.get_film_list()
         for idx, film in enumerate(film_list, start=1):
-            tasks.append(self.get_status(film, idx))
+            last_checked = film.get('last_checked')
+            if not last_checked or last_checked < datetime.datetime.now().strftime('%Y-%m-%d'):
+                film['last_checked'] = datetime.datetime.now().strftime('%Y-%m-%d')
+                tasks.append(self.get_status(film, idx))
+        if len(tasks) > 0:
+            print(f'Fetching statuses for {len(tasks)} films...')
+        else:
+            print('All films are up to date, no need to fetch statuses.')
         await asyncio.gather(*tasks)
 
     async def fetch_one_status(self, film, debug=False):
@@ -135,7 +143,6 @@ class Todoer:
                 self.change(film_id, **film)
         except AttributeError as ex:
             print(f'Cannot get film name or quality, {ex}')
-        return film
 
     def change(self, film_id: int, **kwargs) -> CurrentTodo:
         """change to-do"""

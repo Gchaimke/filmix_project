@@ -126,10 +126,12 @@ def list_all(fetch: bool = typer.Option(False, '--fetch', '-f'),
         if quality := film.get('quality'):
             msg += str(quality)
         if imdb := film.get('imdb'):
-            msg += (18 - len(quality)) * ' ' + f"IMDB:{imdb}"
-        if film.get('filmix_users_rating'):
-            msg += (18 - len(film.get('imdb'))) * ' ' + \
-                f"Filmix:{film.get('filmix_users_rating')}"
+            msg += (18 - len(str(quality))) * ' ' + f"IMDB:{imdb}"
+        if filmix_users_rating := film.get('filmix_users_rating'):
+            msg += (15 - len(str(imdb))) * ' ' + \
+                f"Filmix:{filmix_users_rating}"
+        msg += (15 - len(str(filmix_users_rating))) * ' ' + \
+            f"Updated: {film.get('last_checked')}"
         if verbose:
             msg = '| '.join([f'{key}:{val}' for key, val in film.items()])
         typer.secho(msg, fg=typer.colors.BLUE)
